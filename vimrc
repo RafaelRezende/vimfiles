@@ -1,5 +1,12 @@
-"Fabio Kung <fabio.kung@gmail.com>
-"
+"avoiding annoying CSApprox warning message
+let g:CSApprox_verbose_level = 0
+
+"necessary on some Linux distros for pathogen to properly load bundles
+filetype off
+
+"load pathogen managed plugins
+call pathogen#runtime_append_all_bundles()
+
 "Use Vim settings, rather then Vi settings (much better!).
 "This must be first, because it changes other options as a side effect.
 set nocompatible
@@ -33,6 +40,9 @@ nmap <D-4> g$
 nmap <D-6> g^
 nmap <D-0> g^
 
+"add some line space for easy reading
+set linespace=4
+
 "disable visual bell
 set visualbell t_vb=
 
@@ -44,41 +54,13 @@ set fo=l
 "statusline setup
 set statusline=%f       "tail of the filename
 
-"display a warning if fileformat isnt unix
-set statusline+=%#warningmsg#
-set statusline+=%{&ff!='unix'?'['.&ff.']':''}
-set statusline+=%*
+"Git
+set statusline+=[%{GitBranch()}]
 
-"display a warning if file encoding isnt utf-8
-set statusline+=%#warningmsg#
-set statusline+=%{(&fenc!='utf-8'&&&fenc!='')?'['.&fenc.']':''}
-set statusline+=%*
-
-set statusline+=%h      "help file flag
-set statusline+=%y      "filetype
-set statusline+=%r      "read only flag
-set statusline+=%m      "modified flag
-
-"display a warning if &et is wrong, or we have mixed-indenting
-set statusline+=%#error#
-set statusline+=%{StatuslineTabWarning()}
-set statusline+=%*
-
-set statusline+=%{StatuslineTrailingSpaceWarning()}
-
-set statusline+=%{StatuslineLongLineWarning()}
-
-set statusline+=%#warningmsg#
-set statusline+=%{SyntasticStatuslineFlag()}
-set statusline+=%*
-
-"display a warning if &paste is set
-set statusline+=%#error#
-set statusline+=%{&paste?'[paste]':''}
-set statusline+=%*
+"RVM
+set statusline+=%{exists('g:loaded_rvm')?rvm#statusline():''}
 
 set statusline+=%=      "left/right separator
-set statusline+=%{StatuslineCurrentHighlight()}\ \ "current highlight
 set statusline+=%c,     "cursor column
 set statusline+=%l/%L   "cursor line/total lines
 set statusline+=\ %P    "percent through file
@@ -195,8 +177,8 @@ function! s:Median(nums)
 endfunction
 
 "indent settings
-set shiftwidth=4
-set softtabstop=4
+set shiftwidth=2
+set softtabstop=2
 set expandtab
 set autoindent
 
@@ -225,9 +207,6 @@ set sidescroll=1
 filetype plugin on
 filetype indent on
 
-"load pathogen managed plugins
-call pathogen#runtime_append_all_bundles()
-
 "turn on syntax highlighting
 syntax on
 
@@ -246,15 +225,17 @@ if has("gui_running")
     "tell the term has 256 colors
     set t_Co=256
 
+    colorscheme railscasts
+    set guitablabel=%M%t
+    set lines=40
+    set columns=115
+
     if has("gui_gnome")
         set term=gnome-256color
-        colorscheme desert
-    else
         colorscheme railscasts
-        set guitablabel=%M%t
-        set lines=40
-        set columns=115
+        set guifont=Monospace\ Bold\ 12
     endif
+
     if has("gui_mac") || has("gui_macvim")
         set guifont=Menlo:h14
         " key binding for Command-T to behave properly
@@ -262,8 +243,12 @@ if has("gui_running")
         "macmenu &File.New\ Tab key=<nop>
         "map <D-t> :CommandT<CR>
         " make Mac's Option key behave as the Meta key
-        set invmmta
+        try
+          set transparency=5
+        catch
+        endtry
     endif
+
     if has("gui_win32") || has("gui_win32s")
         set guifont=Consolas:h12
         set enc=utf-8
@@ -271,9 +256,22 @@ if has("gui_running")
 else
     "dont load csapprox if there is no gui support - silences an annoying warning
     let g:CSApprox_loaded = 1
+
+    "set railscasts colorscheme when running vim in gnome terminal
+    if $COLORTERM == 'gnome-terminal'
+        set term=gnome-256color
+        colorscheme railscasts
+    else
+        colorscheme default
+    endif
 endif
 
-nmap <silent> <Leader>p :NERDTreeToggle<CR>
+" PeepOpen uses <Leader>p as well so you will need to redefine it so something
+" else in your ~/.vimrc file, such as:
+" nmap <silent> <Leader>q <Plug>PeepOpen
+
+silent! nmap <silent> <Leader>p :NERDTreeToggle<CR>
+nnoremap <silent> <C-f> :call FindInNERDTree()<CR>
 
 "make <c-l> clear the highlight as well as redraw
 nnoremap <C-L> :nohls<CR><C-L>
@@ -305,24 +303,38 @@ map <A-q> :cclose<CR>
 map <A-j> :cnext<CR>
 map <A-k> :cprevious<CR>
 
+"key mapping for Gundo
+nnoremap <F4> :GundoToggle<CR>
+
 "snipmate setup
 try
   source ~/.vim/snippets/support_functions.vim
 catch
-  source $HOMEPATH\vimfiles\snippets\support_functions.vim
+  source ~/vimfiles/snippets/support_functions.vim
 endtry
 autocmd vimenter * call s:SetupSnippets()
 function! s:SetupSnippets()
 
     "if we're in a rails env then read in the rails snippets
     if filereadable("./config/environment.rb")
+      try
         call ExtractSnips("~/.vim/snippets/ruby-rails", "ruby")
         call ExtractSnips("~/.vim/snippets/eruby-rails", "eruby")
+      catch
+        call ExtractSnips("~/vimfiles/snippets/ruby-rails", "ruby")
+        call ExtractSnips("~/vimfiles/snippets/eruby-rails", "eruby")
+      endtry
     endif
 
-    call ExtractSnips("~/.vim/snippets/html", "eruby")
-    call ExtractSnips("~/.vim/snippets/html", "xhtml")
-    call ExtractSnips("~/.vim/snippets/html", "php")
+    try
+      call ExtractSnips("~/.vim/snippets/html", "eruby")
+      call ExtractSnips("~/.vim/snippets/html", "xhtml")
+      call ExtractSnips("~/.vim/snippets/html", "php")
+    catch
+      call ExtractSnips("~/vimfiles/snippets/html", "eruby")
+      call ExtractSnips("~/vimfiles/snippets/html", "xhtml")
+      call ExtractSnips("~/vimfiles/snippets/html", "php")
+    endtry
 endfunction
 
 "visual search mappings
@@ -359,3 +371,56 @@ function! s:HighlightLongLines(width)
         echomsg "Usage: HighlightLongLines [natural number]"
     endif
 endfunction
+
+" Strip trailing whitespace
+function! <SID>StripTrailingWhitespaces()
+    " Preparation: save last search, and cursor position.
+    let _s=@/
+    let l = line(".")
+    let c = col(".")
+    " Do the business:
+    %s/\s\+$//e
+    " Clean up: restore previous search history, and cursor position
+    let @/=_s
+    call cursor(l, c)
+endfunction
+autocmd BufWritePre * :call <SID>StripTrailingWhitespaces()
+
+"key mapping for window navigation
+map <C-h> <C-w>h
+map <C-j> <C-w>j
+map <C-k> <C-w>k
+map <C-l> <C-w>l
+
+"key mapping for saving file
+nmap <C-s> :w<CR>
+
+"key mapping for tab navigation
+nmap <Tab> gt
+nmap <S-Tab> gT
+
+"Key mapping for textmate-like indentation
+nmap <D-[> <<
+nmap <D-]> >>
+vmap <D-[> <gv
+vmap <D-]> >gv
+
+let ScreenShot = {'Icon':0, 'Credits':0, 'force_background':'#FFFFFF'}
+
+"Enabling Zencoding
+let g:user_zen_settings = {
+  \  'php' : {
+  \    'extends' : 'html',
+  \    'filters' : 'c',
+  \  },
+  \  'xml' : {
+  \    'extends' : 'html',
+  \  },
+  \  'haml' : {
+  \    'extends' : 'html',
+  \  },
+  \  'erb' : {
+  \    'extends' : 'html',
+  \  },
+ \}
+
