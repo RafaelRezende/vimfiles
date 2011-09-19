@@ -424,3 +424,10 @@ let g:user_zen_settings = {
   \  },
  \}
 
+function! ExtractText(fileName,first_line,last_line)
+    let text = getline(a:first_line,a:last_line)
+    execute ":" . a:first_line . "," . a:last_line . "delete"
+    execute "normal O{{" . a:fileName . "}}"
+    return writefile(text, a:fileName)
+endfunction
+command! -range -complete=file -nargs=1 Es call ExtractText(<f-args>,<line1>,<line2>)
